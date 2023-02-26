@@ -1,0 +1,12 @@
+{
+  "name": "C92-poly",
+  "tool": "C92",
+  "process": "poly",
+  "outline": ["Init", "Prep", "Depo", "Cleanup"],
+  "dataFiles": [
+    { "Init": "init.txt" },
+    { "Prep": "prep.txt" },
+    { "Depo": "depo.txt" },
+    { "Cleanup": "cleanup.txt" }
+  ]
+}
