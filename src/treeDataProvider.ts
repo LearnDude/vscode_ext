@@ -2,84 +2,88 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 
-export class NodeDependenciesProvider
+export class ProcessOverviewTreeDataProvider
   implements vscode.TreeDataProvider<Dependency>
 {
-  constructor(private workspaceRoot: string) {}
+  constructor(private workspaceRoot: string, private processFilePath: string) {
+    console.log(
+      `ProcessOverviewTreeDataProvider: ${processFilePath}, root: ${workspaceRoot}`
+    );
+    this.processFilePath = processFilePath;
+    this.workspaceRoot = workspaceRoot;
+  }
 
   getTreeItem(element: Dependency): vscode.TreeItem {
+    console.log(`getTreeItem: ${element}, label: ${element.label}`);
+    const treeItem = new Dependency(
+      element.label,
+      "root",
+      vscode.TreeItemCollapsibleState.None
+    );
     return element;
   }
 
   getChildren(element?: Dependency): Thenable<Dependency[]> {
+    console.log(`getChildren top: ${element ? element.label : "root"}`);
+
     if (!this.workspaceRoot) {
       vscode.window.showInformationMessage("No dependency in empty workspace");
       return Promise.resolve([]);
     }
 
-    if (element) {
-      return Promise.resolve(
-        this.getDepsInPackageJson(
-          path.join(
-            this.workspaceRoot,
-            "node_modules",
-            element.label,
-            "package.json"
-          )
-        )
+    this.readProcessOutline(this.processFilePath);
+
+    if (!element) {
+      const rootDependency = new Dependency(
+        this.processName,
+        "root",
+        vscode.TreeItemCollapsibleState.Expanded
       );
+      return Promise.resolve([rootDependency]);
     } else {
-      const packageJsonPath = path.join(this.workspaceRoot, "package.json");
-      if (this.pathExists(packageJsonPath)) {
-        return Promise.resolve(this.getDepsInPackageJson(packageJsonPath));
-      } else {
-        vscode.window.showInformationMessage("Workspace has no package.json");
-        return Promise.resolve([]);
+      console.log(`getChildren: root: ${this.outline}`);
+      var dependencies: Dependency[] = [];
+      for (var i = 0; i < this.outline.length; i++) {
+        const label = this.outline[i] as string;
+        const dependency = new Dependency(
+          label,
+          label + ".txt",
+          vscode.TreeItemCollapsibleState.None
+        );
+        dependencies.push(dependency);
       }
+      return Promise.resolve(dependencies);
     }
   }
 
-  /**
-   * Given the path to package.json, read all its dependencies and devDependencies.
-   */
-  private getDepsInPackageJson(packageJsonPath: string): Dependency[] {
-    if (this.pathExists(packageJsonPath)) {
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+  outline = [] as Array<string>;
+  dataFiles = {} as Map<string, string>;
+  processName = "unknown";
 
-      const toDep = (moduleName: string, version: string): Dependency => {
-        if (
-          this.pathExists(
-            path.join(this.workspaceRoot, "node_modules", moduleName)
-          )
-        ) {
-          return new Dependency(
-            moduleName,
-            version,
-            vscode.TreeItemCollapsibleState.Collapsed
-          );
-        } else {
-          return new Dependency(
-            moduleName,
-            version,
-            vscode.TreeItemCollapsibleState.None
-          );
-        }
-      };
-
-      const deps = packageJson.dependencies
-        ? Object.keys(packageJson.dependencies).map((dep) =>
-            toDep(dep, packageJson.dependencies[dep])
-          )
-        : [];
-      const devDeps = packageJson.devDependencies
-        ? Object.keys(packageJson.devDependencies).map((dep) =>
-            toDep(dep, packageJson.devDependencies[dep])
-          )
-        : [];
-      return deps.concat(devDeps);
-    } else {
-      return [];
+  private readProcessOutline(fileName: string) {
+    const path = this.workspaceRoot + "/" + fileName;
+    console.log(`Reading process outline from: ${fileName}`);
+    const processOutline = JSON.parse(fs.readFileSync(path, "utf-8"));
+    if (!processOutline) {
+      console.error(`Failed to load ${fileName}`);
+      return;
     }
+
+    this.outline = processOutline.outline;
+    this.dataFiles = processOutline.dataFiles;
+    this.processName = processOutline.name;
+  }
+
+  private _onDidChangeTreeData: vscode.EventEmitter<
+    Dependency | undefined | null | void
+  > = new vscode.EventEmitter<Dependency | undefined | null | void>();
+
+  readonly onDidChangeTreeData: vscode.Event<
+    Dependency | undefined | null | void
+  > = this._onDidChangeTreeData.event;
+
+  refresh(): void {
+    this._onDidChangeTreeData.fire();
   }
 
   private pathExists(p: string): boolean {
@@ -92,15 +96,19 @@ export class NodeDependenciesProvider
   }
 }
 
-class Dependency extends vscode.TreeItem {
+export class Dependency extends vscode.TreeItem {
   constructor(
     public readonly label: string,
-    private version: string,
+    public fileName: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState
   ) {
     super(label, collapsibleState);
-    this.tooltip = `${this.label}-${this.version}`;
-    this.description = this.version;
+    this.tooltip = `${this.fileName}`;
+    this.description = this.label;
+  }
+
+  deleteEntry(): void {
+    console.log(`deleteEntry: ${this.label}`);
   }
 
   iconPath = {

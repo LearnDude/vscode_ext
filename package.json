@@ -18,30 +18,36 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.BE2.ac-ui",
-        "title": "Hello World"
+        "command": "ac-ui.refreshEntry",
+        "title": "Refresh",
+        "icon": "$(extensions-refresh)"
+      },
+      {
+        "command": "ac-ui-process_tree.deleteEntry",
+        "title": "Delete",
+        "group": "inline"
+      },
+      {
+        "command": "ac-ui-process_tree.viewInVisualizer",
+        "title": "View in Visualizer",
+        "when": "view == issuesList && viewItem == dependency"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "ac-ui",
+          "id": "ac-ui-container",
           "title": "Autonomous Control",
-          "icon": "resources\\TEL.svg"
+          "icon": "resources/TEL.svg"
         }
       ]
     },
     "views": {
-      "ac-ui": [
+      "ac-ui-container": [
         {
-          "id": "ac-ui",
-          "name": "Process Outline"
-        }
-      ],
-      "explorer": [
-        {
-          "id": "ac-ui",
-          "name": "Process Outline"
+          "id": "ac-ui-process_tree",
+          "name": "Process Outline",
+          "icon": "account"
         }
       ]
     },
@@ -51,7 +57,27 @@
         "contents": "This is the process outline view. It shows the phases and transitions in the process.\n[Open file](command:workbench.action.files.openFile)\n",
         "when": "workbenchState == empty"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "ac-ui.refreshEntry",
+          "when": "view == ac-ui-container",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ac-ui-process_tree.deleteEntry",
+          "when": "view == issuesList && viewItem == dependency",
+          "group": "inline"
+        },
+        {
+          "command": "ac-ui-process_tree.viewInVisualizer",
+          "when": "view == issuesList && viewItem == dependency"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "yarn run compile",
